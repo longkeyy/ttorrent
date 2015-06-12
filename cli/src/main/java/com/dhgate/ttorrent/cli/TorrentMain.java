@@ -13,21 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.turn.ttorrent.cli;
+package com.dhgate.ttorrent.cli;
 
+import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream;
 import com.turn.ttorrent.common.Torrent;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Vector;
-
 import jargs.gnu.CmdLineParser;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -38,23 +27,30 @@ import org.apache.log4j.PatternLayout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.net.URI;
+import java.util.*;
+
 /**
- * Command-line entry-point for reading and writing {@link Torrent} files.
+ * Command-line entry-point for reading and writing {@link com.turn.ttorrent.common.Torrent} files.
  */
-public class TorrentMain {
+public class TorrentMain extends TtorrentUpdateProcess{
 
 	private static final Logger logger =
 		LoggerFactory.getLogger(TorrentMain.class);
 
 	/**
-	 * Display program usage on the given {@link PrintStream}.
+	 * Display program usage on the given {@link java.io.PrintStream}.
 	 */
 	private static void usage(PrintStream s) {
 		usage(s, null);
 	}
 
 	/**
-	 * Display a message and program usage on the given {@link PrintStream}.
+	 * Display a message and program usage on the given {@link java.io.PrintStream}.
 	 */
 	private static void usage(PrintStream s, String msg) {
 		if (msg != null) {
@@ -74,6 +70,64 @@ public class TorrentMain {
 		s.println("  -a,--announce         Tracker URL (can be repeated).");
 		s.println();
 	}
+
+    @Override
+    void processData(byte[] data) {
+
+    }
+
+    /**
+     *
+     * @param announceURLs
+     * @param pieceLengthVal
+     * @param sharePath
+     */
+    public byte[] create(Set<String> announceURLs, Integer pieceLengthVal,String sharePath ){
+        ByteOutputStream fos = null;
+        byte[] data = null;
+        try {
+                fos = new ByteOutputStream();
+
+                //Process the announce URLs into URIs
+                List<URI> announceURIs = new ArrayList<URI>();
+                for (String url : announceURLs) {
+                    announceURIs.add(new URI(url));
+                }
+
+                //Create the announce-list as a list of lists of URIs
+                //Assume all the URI's are first tier trackers
+                List<List<URI>> announceList = new ArrayList<List<URI>>();
+                announceList.add(announceURIs);
+
+                File source = new File(sharePath);
+                if (!source.exists() || !source.canRead()) {
+                    throw new IllegalArgumentException(
+                            "Cannot access source file or directory " +
+                                    source.getName());
+                }
+
+                String creator = String.format("%s (ttorrent)",
+                        System.getProperty("user.name"));
+
+                Torrent torrent = null;
+                if (source.isDirectory()) {
+                    List<File> files = new ArrayList<File>(FileUtils.listFiles(source, TrueFileFilter.TRUE, TrueFileFilter.TRUE));
+                    Collections.sort(files);
+                    torrent = Torrent.create(source, files, pieceLengthVal,
+                            announceList, creator);
+                } else {
+                    torrent = Torrent.create(source, pieceLengthVal, announceList, creator);
+                }
+                torrent.save(fos);
+                data = fos.getBytes();
+        } catch (Exception e) {
+            logger.error("{}", e.getMessage(), e);
+            System.exit(2);
+        } finally {
+            IOUtils.closeQuietly(fos);
+        }
+        return data;
+    }
 
 	/**
 	 * Torrent reader and creator.
@@ -139,58 +193,9 @@ public class TorrentMain {
 				"provided to create a torrent file!");
 			System.exit(1);
 		}
-		
-		
-		OutputStream fos = null;
-		try {
-			if (Boolean.TRUE.equals(createFlag)) {
-				if (filenameValue != null) {
-					fos = new FileOutputStream(filenameValue);
-				} else {
-					fos = System.out;
-				}
 
-				//Process the announce URLs into URIs
-				List<URI> announceURIs = new ArrayList<URI>();		
-				for (String url : announceURLs) { 
-					announceURIs.add(new URI(url));
-				}
-				
-				//Create the announce-list as a list of lists of URIs
-				//Assume all the URI's are first tier trackers
-				List<List<URI>> announceList = new ArrayList<List<URI>>();
-				announceList.add(announceURIs);
-				
-				File source = new File(otherArgs[0]);
-				if (!source.exists() || !source.canRead()) {
-					throw new IllegalArgumentException(
-						"Cannot access source file or directory " +
-							source.getName());
-				}
 
-				String creator = String.format("%s (ttorrent)",
-					System.getProperty("user.name"));
-
-				Torrent torrent = null;
-				if (source.isDirectory()) {
-					List<File> files = new ArrayList<File>(FileUtils.listFiles(source, TrueFileFilter.TRUE, TrueFileFilter.TRUE));
-					Collections.sort(files);
-					torrent = Torrent.create(source, files, pieceLengthVal, 
-							announceList, creator);
-				} else {
-					torrent = Torrent.create(source, pieceLengthVal, announceList, creator);
-				}
-				torrent.save(fos);
-			} else {
-				Torrent.load(new File(filenameValue), true);
-			}
-		} catch (Exception e) {
-			logger.error("{}", e.getMessage(), e);
-			System.exit(2);
-		} finally {
-			if (fos != System.out) {
-				IOUtils.closeQuietly(fos);
-			}
-		}
 	}
+
+
 }
