@@ -112,7 +112,7 @@ public class TorrentMaster extends TtorrentUpdateProcess {
 	}
 
 
-    public byte[] create(List<String> announceURLs, int pieceLengthVal, String sharePath){
+    public byte[] create(Set<String> announceURLs, int pieceLengthVal, String sharePath){
         ByteOutputStream fos = null;
         byte[] data = new byte[0];
         try {
