@@ -32,7 +32,7 @@ import java.net.InetSocketAddress;
 /**
  * Command-line entry-point for starting a {@link com.turn.ttorrent.tracker.Tracker}
  */
-public class TorrentTracker extends TtorrentUpdateProcess {
+public class TorrentTracker extends TorrentUpdateProcess {
 
     private static final Logger logger =
             LoggerFactory.getLogger(TorrentTracker.class);

@@ -17,7 +17,6 @@ package com.dhgate.ttorrent.cli;
 
 import com.google.common.collect.Sets;
 import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream;
-import com.turn.ttorrent.cli.TorrentMain;
 import com.turn.ttorrent.client.Client;
 import com.turn.ttorrent.client.SharedTorrent;
 import com.turn.ttorrent.common.Torrent;
@@ -33,8 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.*;
 import java.nio.channels.UnsupportedAddressTypeException;
@@ -43,7 +40,7 @@ import java.util.*;
 /**
  * Command-line entry-point for starting a {@link com.turn.ttorrent.client.Client}
  */
-public class TorrentMaster extends TtorrentUpdateProcess {
+public class TorrentMaster extends TorrentUpdateProcess {
 
 	private static final Logger logger =
 		LoggerFactory.getLogger(TorrentMaster.class);
@@ -53,66 +50,8 @@ public class TorrentMaster extends TtorrentUpdateProcess {
 	 */
 	private static final String DEFAULT_OUTPUT_DIRECTORY = "/tmp";
 
-	/**
-	 * Returns a usable {@link java.net.Inet4Address} for the given interface name.
-	 *
-	 * <p>
-	 * If an interface name is given, return the first usable IPv4 address for
-	 * that interface. If no interface name is given or if that interface
-	 * doesn't have an IPv4 address, return's localhost address (if IPv4).
-	 * </p>
-	 *
-	 * <p>
-	 * It is understood this makes the client IPv4 only, but it is important to
-	 * remember that most BitTorrent extensions (like compact peer lists from
-	 * trackers and UDP tracker support) are IPv4-only anyway.
-	 * </p>
-	 *
-	 * @param iface The network interface name.
-	 * @return A usable IPv4 address as a {@link java.net.Inet4Address}.
-	 * @throws java.nio.channels.UnsupportedAddressTypeException If no IPv4 address was available
-	 * to bind on.
-	 */
-	private static Inet4Address getIPv4Address(String iface)
-		throws SocketException, UnsupportedAddressTypeException,
-		UnknownHostException {
-		if (iface != null) {
-			Enumeration<InetAddress> addresses =
-				NetworkInterface.getByName(iface).getInetAddresses();
-			while (addresses.hasMoreElements()) {
-				InetAddress addr = addresses.nextElement();
-				if (addr instanceof Inet4Address) {
-					return (Inet4Address)addr;
-				}
-			}
-		}
 
-		InetAddress localhost = InetAddress.getLocalHost();
-		if (localhost instanceof Inet4Address) {
-			return (Inet4Address)localhost;
-		}
-
-		throw new UnsupportedAddressTypeException();
-	}
-
-	/**
-	 * Display program usage on the given {@link java.io.PrintStream}.
-	 */
-	private static void usage(PrintStream s) {
-		s.println("usage: Client [options] <torrent>");
-		s.println();
-		s.println("Available options:");
-		s.println("  -h,--help                  Show this help and exit.");
-		s.println("  -o,--output DIR            Read/write data to directory DIR.");
-		s.println("  -i,--iface IFACE           Bind to interface IFACE.");
-		s.println("  -s,--seed SECONDS          Time to seed after downloading (default: infinitely).");
-		s.println("  -d,--max-download KB/SEC   Max download rate (default: unlimited).");
-		s.println("  -u,--max-upload KB/SEC     Max upload rate (default: unlimited).");
-		s.println();
-	}
-
-
-    public byte[] create(List<String> announceURLs, int pieceLengthVal, String sharePath){
+    public byte[] create(Set<String> announceURLs, int pieceLengthVal, String sharePath){
         ByteOutputStream fos = null;
         byte[] data = new byte[0];
         try {
