@@ -16,27 +16,34 @@
 package com.dhgate.ttorrent.cli;
 
 import com.google.common.collect.Sets;
+import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream;
+import com.turn.ttorrent.cli.TorrentMain;
 import com.turn.ttorrent.client.Client;
 import com.turn.ttorrent.client.SharedTorrent;
 import com.turn.ttorrent.common.Torrent;
 import jargs.gnu.CmdLineParser;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.PatternLayout;
+import org.apache.log4j.Priority;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.*;
 import java.nio.channels.UnsupportedAddressTypeException;
-import java.util.Enumeration;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Command-line entry-point for starting a {@link com.turn.ttorrent.client.Client}
  */
-public class TorrentMaster {
+public class TorrentMaster extends TtorrentUpdateProcess {
 
 	private static final Logger logger =
 		LoggerFactory.getLogger(TorrentMaster.class);
@@ -104,12 +111,62 @@ public class TorrentMaster {
 		s.println();
 	}
 
+
+    public byte[] create(List<String> announceURLs, int pieceLengthVal, String sharePath){
+        ByteOutputStream fos = null;
+        byte[] data = new byte[0];
+        try {
+
+                fos = new ByteOutputStream();
+                //Process the announce URLs into URIs
+                List<URI> announceURIs = new ArrayList<URI>();
+                for (String url : announceURLs) {
+                    announceURIs.add(new URI(url));
+                }
+
+                //Create the announce-list as a list of lists of URIs
+                //Assume all the URI's are first tier trackers
+                List<List<URI>> announceList = new ArrayList<List<URI>>();
+                announceList.add(announceURIs);
+
+                File source = new File(sharePath);
+                if (!source.exists() || !source.canRead()) {
+                    throw new IllegalArgumentException(
+                            "Cannot access source file or directory " +
+                                    source.getName());
+                }
+
+                String creator = String.format("%s (ttorrent)",
+                        System.getProperty("user.name"));
+
+                Torrent torrent = null;
+                if (source.isDirectory()) {
+                    List<File> files = new ArrayList<File>(FileUtils.listFiles(source, TrueFileFilter.TRUE, TrueFileFilter.TRUE));
+                    Collections.sort(files);
+                    torrent = Torrent.create(source, files, pieceLengthVal,
+                            announceList, creator);
+                } else {
+                    torrent = Torrent.create(source, pieceLengthVal, announceList, creator);
+                }
+                torrent.save(fos);
+                data= fos.getBytes();
+        } catch (Exception e) {
+            logger.error("{}", e.getMessage(), e);
+            System.exit(2);
+        } finally {
+                IOUtils.closeQuietly(fos);
+        }
+        return data;
+    }
+
 	/**
 	 * Main client entry point for stand-alone operation.
 	 */
 	public static void main(String[] args) throws InterruptedException {
-		BasicConfigurator.configure(new ConsoleAppender(
-			new PatternLayout("%d [%-25t] %-5p: %m%n")));
+        ConsoleAppender consoleAppender = new ConsoleAppender(
+                new PatternLayout("%d [%-25t] %-5p: %m%n"));
+        consoleAppender.setThreshold(Priority.INFO);
+        BasicConfigurator.configure(consoleAppender);
 
 		CmdLineParser parser = new CmdLineParser();
 		CmdLineParser.Option help = parser.addBooleanOption('h', "help");
@@ -147,10 +204,10 @@ public class TorrentMaster {
 //			System.exit(1);
 //		}
 
-        TorrentMain torrentMain = new TorrentMain();
+        TorrentMaster torrentMain = new TorrentMaster();
         torrentMain.register();
         Set<String> announceURLs = Sets.newHashSet();
-
+        announceURLs.add("http://192.168.54.34:6969/announce");
         String sharePath = "d:/tmp/torrent/master/ai";
         String shardParent = "d:/tmp/torrent/master";
         byte[] data = torrentMain.create(announceURLs, Torrent.DEFAULT_PIECE_LENGTH, sharePath);
@@ -169,7 +226,7 @@ public class TorrentMaster {
 			Runtime.getRuntime().addShutdownHook(
 				new Thread(new Client.ClientShutdown(c, null)));
 
-            int seedTimeValue = -1;
+            int seedTimeValue = Integer.MAX_VALUE;
             c.share(seedTimeValue);
 			if (Client.ClientState.ERROR.equals(c.getState())) {
 				System.exit(1);
@@ -183,4 +240,9 @@ public class TorrentMaster {
             Thread.sleep(1);
         }
 	}
+
+    @Override
+    void processData(byte[] data) {
+
+    }
 }

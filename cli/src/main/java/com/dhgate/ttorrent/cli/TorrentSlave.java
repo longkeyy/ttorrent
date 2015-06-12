@@ -21,6 +21,7 @@ import jargs.gnu.CmdLineParser;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.PatternLayout;
+import org.apache.log4j.Priority;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +31,8 @@ import java.io.PrintStream;
 import java.net.*;
 import java.nio.channels.UnsupportedAddressTypeException;
 import java.util.Enumeration;
+import java.util.List;
+import java.util.Stack;
 
 /**
  * Command-line entry-point for starting a {@link com.turn.ttorrent.client.Client}
@@ -106,8 +109,10 @@ public class TorrentSlave extends TtorrentUpdateProcess{
 	 * Main client entry point for stand-alone operation.
 	 */
 	public static void main(String[] args) throws InterruptedException {
-		BasicConfigurator.configure(new ConsoleAppender(
-			new PatternLayout("%d [%-25t] %-5p: %m%n")));
+        ConsoleAppender consoleAppender = new ConsoleAppender(
+                new PatternLayout("%d [%-25t] %-5p: %m%n"));
+        consoleAppender.setThreshold(Priority.INFO);
+        BasicConfigurator.configure(consoleAppender);
 
 //		CmdLineParser parser = new CmdLineParser();
 //		CmdLineParser.Option help = parser.addBooleanOption('h', "help");
@@ -169,25 +174,35 @@ public class TorrentSlave extends TtorrentUpdateProcess{
 //			System.exit(2);
 //		}
 
-        new TorrentSlave();
+        TorrentSlave torrentSlave = new TorrentSlave();
+        torrentSlave.register();
         while(true){
             Thread.sleep(1);
         }
 	}
 
+    Stack<Client> cs = new Stack<Client>();
+
     @Override
     void processData(byte[] data) {
-        System.out.println("Slave got data");
-        if(data!=null && data.length>0){
+        logger.info("Slave got data length: " + data.length);
 
         try {
+            while(!cs.empty()){
+                cs.pop().stop();
+            }
+            SharedTorrent sharedTorrent = new SharedTorrent(data, new File("d:/tmp/torrent/slave"));
+            //TODO:删除多余的文件
+            List<String> filenames = sharedTorrent.getFilenames();
+
             Client c = new Client(
                     getIPv4Address(null),
-                    new SharedTorrent(data, new File("d:/tmp/torrent/slave")));
-            c.waitForCompletion();
+                    sharedTorrent);
+            cs.push(c);
+            c.setMaxDownloadRate(0);
+            c.download();
         } catch (IOException e) {
             e.printStackTrace();
-        }
         }
 
     }

@@ -21,11 +21,10 @@ import jargs.gnu.CmdLineParser;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.PatternLayout;
+import org.apache.log4j.Priority;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
@@ -33,10 +32,28 @@ import java.net.InetSocketAddress;
 /**
  * Command-line entry-point for starting a {@link com.turn.ttorrent.tracker.Tracker}
  */
-public class TrackerMain extends TtorrentUpdateProcess {
+public class TorrentTracker extends TtorrentUpdateProcess {
 
     private static final Logger logger =
-            LoggerFactory.getLogger(TrackerMain.class);
+            LoggerFactory.getLogger(TorrentTracker.class);
+
+    private Tracker t;
+
+    public TorrentTracker(int port){
+        super();
+        try {
+            t = new Tracker(new InetSocketAddress(port));
+        } catch (IOException e) {
+            logger.error(e.getMessage(), e);
+            e.printStackTrace();
+            throw new RuntimeException("TorrentTracker init error", e);
+        }
+        register();
+        logger.info("Starting tracker with {} announced torrents...",
+                t.getTrackedTorrents().size());
+        t.start();
+    }
+
 
     /**
      * Display program usage on the given {@link java.io.PrintStream}.
@@ -50,22 +67,31 @@ public class TrackerMain extends TtorrentUpdateProcess {
         s.println();
     }
 
-    static Tracker t;
 
-    public void startup(int port) throws IOException {
-        t = new Tracker(new InetSocketAddress(port));
-        register();
-        logger.info("Starting tracker with {} announced torrents...",
-                t.getTrackedTorrents().size());
-        t.start();
+    /**
+     *
+     * @param torrent
+     */
+    @Override
+    void processData(byte[] torrent) {
+        System.out.println("Tracker got torrent");
+        try {
+            if (torrent != null && torrent.length > 0)
+                t.announce(new TrackedTorrent(torrent));
+        } catch (IOException e) {
+            logger.warn(e.getMessage(), e);
+            e.printStackTrace();
+        }
     }
 
     /**
      * Main function to start a tracker.
      */
     public static void main(String[] args) throws IOException {
-        BasicConfigurator.configure(new ConsoleAppender(
-                new PatternLayout("%d [%-25t] %-5p: %m%n")));
+        ConsoleAppender consoleAppender = new ConsoleAppender(
+                new PatternLayout("%d [%-25t] %-5p: %m%n"));
+        consoleAppender.setThreshold(Priority.INFO);
+        BasicConfigurator.configure(consoleAppender);
 
         CmdLineParser parser = new CmdLineParser();
         CmdLineParser.Option help = parser.addBooleanOption('h', "help");
@@ -88,56 +114,8 @@ public class TrackerMain extends TtorrentUpdateProcess {
         Integer portValue = (Integer) parser.getOptionValue(port,
                 Integer.valueOf(Tracker.DEFAULT_TRACKER_PORT));
 
-        new TrackerMain().startup(portValue);
-
-//
-//        String[] otherArgs = parser.getRemainingArgs();
-//
-//        if (otherArgs.length > 1) {
-//            usage(System.err);
-//            System.exit(1);
-//        }
-//
-//        // Get directory from command-line argument or default to current
-//        // directory
-//        String directory = otherArgs.length > 0
-//                ? otherArgs[0]
-//                : ".";
-//
-//        FilenameFilter filter = new FilenameFilter() {
-//            @Override
-//            public boolean accept(File dir, String name) {
-//                return name.endsWith(".torrent");
-//            }
-//        };
-//
-//        try {
-//            t = new Tracker(new InetSocketAddress(portValue.intValue()));
-//
-//
-////            File parent = new File(directory);
-////            for (File f : parent.listFiles(filter)) {
-////                logger.info("Loading torrent from " + f.getName());
-////                t.announce(TrackedTorrent.load(f));
-////            }
-//
-//            logger.info("Starting tracker with {} announced torrents...",
-//                    t.getTrackedTorrents().size());
-//            t.start();
-//        } catch (Exception e) {
-//            logger.error("{}", e.getMessage(), e);
-//            System.exit(2);
-//        }
+        new TorrentTracker(portValue);
     }
 
-    @Override
-    void processData(byte[] data) {
-        System.out.println("Tracker got data");
-        try {
-            if (data != null && data.length > 0)
-                t.announce(new TrackedTorrent(data));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+
 }
