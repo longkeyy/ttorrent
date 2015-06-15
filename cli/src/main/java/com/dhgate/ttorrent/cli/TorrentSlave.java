@@ -15,9 +15,9 @@
  */
 package com.dhgate.ttorrent.cli;
 
+import com.google.common.collect.Sets;
 import com.turn.ttorrent.client.Client;
 import com.turn.ttorrent.client.SharedTorrent;
-import jargs.gnu.CmdLineParser;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.PatternLayout;
@@ -30,9 +30,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.*;
 import java.nio.channels.UnsupportedAddressTypeException;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Stack;
+import java.util.*;
 
 /**
  * Command-line entry-point for starting a {@link com.turn.ttorrent.client.Client}
@@ -90,22 +88,6 @@ public class TorrentSlave extends TtorrentUpdateProcess{
 	}
 
 	/**
-	 * Display program usage on the given {@link java.io.PrintStream}.
-	 */
-	private static void usage(PrintStream s) {
-		s.println("usage: Client [options] <torrent>");
-		s.println();
-		s.println("Available options:");
-		s.println("  -h,--help                  Show this help and exit.");
-		s.println("  -o,--output DIR            Read/write data to directory DIR.");
-		s.println("  -i,--iface IFACE           Bind to interface IFACE.");
-		s.println("  -s,--seed SECONDS          Time to seed after downloading (default: infinitely).");
-		s.println("  -d,--max-download KB/SEC   Max download rate (default: unlimited).");
-		s.println("  -u,--max-upload KB/SEC     Max upload rate (default: unlimited).");
-		s.println();
-	}
-
-	/**
 	 * Main client entry point for stand-alone operation.
 	 */
 	public static void main(String[] args) throws InterruptedException {
@@ -113,66 +95,6 @@ public class TorrentSlave extends TtorrentUpdateProcess{
                 new PatternLayout("%d [%-25t] %-5p: %m%n"));
         consoleAppender.setThreshold(Priority.INFO);
         BasicConfigurator.configure(consoleAppender);
-
-//		CmdLineParser parser = new CmdLineParser();
-//		CmdLineParser.Option help = parser.addBooleanOption('h', "help");
-//		CmdLineParser.Option output = parser.addStringOption('o', "output");
-//		CmdLineParser.Option iface = parser.addStringOption('i', "iface");
-//		CmdLineParser.Option seedTime = parser.addIntegerOption('s', "seed");
-//		CmdLineParser.Option maxUpload = parser.addDoubleOption('u', "max-upload");
-//		CmdLineParser.Option maxDownload = parser.addDoubleOption('d', "max-download");
-//
-//		try {
-//			parser.parse(args);
-//		} catch (CmdLineParser.OptionException oe) {
-//			System.err.println(oe.getMessage());
-//			usage(System.err);
-//			System.exit(1);
-//		}
-//
-//		// Display help and exit if requested
-//		if (Boolean.TRUE.equals((Boolean)parser.getOptionValue(help))) {
-//			usage(System.out);
-//			System.exit(0);
-//		}
-//
-//		String outputValue = (String)parser.getOptionValue(output,
-//			DEFAULT_OUTPUT_DIRECTORY);
-//		String ifaceValue = (String)parser.getOptionValue(iface);
-//		int seedTimeValue = (Integer)parser.getOptionValue(seedTime, -1);
-//
-//		double maxDownloadRate = (Double)parser.getOptionValue(maxDownload, 0.0);
-//		double maxUploadRate = (Double)parser.getOptionValue(maxUpload, 0.0);
-//
-//		String[] otherArgs = parser.getRemainingArgs();
-//		if (otherArgs.length != 1) {
-//			usage(System.err);
-//			System.exit(1);
-//		}
-//
-//		try {
-//			Client c = new Client(
-//				getIPv4Address(ifaceValue),
-//				SharedTorrent.fromFile(
-//					new File(otherArgs[0]),
-//					new File(outputValue)));
-//
-//			c.setMaxDownloadRate(maxDownloadRate);
-//			c.setMaxUploadRate(maxUploadRate);
-//
-//			// Set a shutdown hook that will stop the sharing/seeding and send
-//			// a STOPPED announce request.
-//			Runtime.getRuntime().addShutdownHook(
-//				new Thread(new Client.ClientShutdown(c, null)));
-//
-//			c.share(seedTimeValue);
-//			if (Client.ClientState.ERROR.equals(c.getState())) {
-//				System.exit(1);
-//			}
-//		} catch (Exception e) {
-//			logger.error("Fatal error: {}", e.getMessage(), e);
-//			System.exit(2);
-//		}
 
         TorrentSlave torrentSlave = new TorrentSlave();
         torrentSlave.register();
@@ -182,7 +104,40 @@ public class TorrentSlave extends TtorrentUpdateProcess{
 	}
 
     Stack<Client> cs = new Stack<Client>();
+    String slavePath = "d:/tmp/torrent/slave";
 
+    /***
+     * 获取指定目录下的所有的文件（不包括文件夹），采用了递归
+     *
+     * @param obj
+     * @return
+     */
+    public static List<File> getListFiles(Object obj) {
+        File directory = null;
+        if (obj instanceof File) {
+            directory = (File) obj;
+        } else {
+            directory = new File(obj.toString());
+        }
+        List<File> files = new ArrayList<File>();
+        if (directory.isFile()) {
+            files.add(directory);
+            return files;
+        } else if (directory.isDirectory()) {
+            File[] fileArr = directory.listFiles();
+            for (int i = 0; i < fileArr.length; i++) {
+                File fileOne = fileArr[i];
+                files.addAll(getListFiles(fileOne));
+            }
+            files.add(directory);
+        }
+        return files;
+    }
+
+    /**
+     * 停止已经存在的
+     * @param data
+     */
     @Override
     void processData(byte[] data) {
         logger.info("Slave got data length: " + data.length);
@@ -191,9 +146,10 @@ public class TorrentSlave extends TtorrentUpdateProcess{
             while(!cs.empty()){
                 cs.pop().stop();
             }
-            SharedTorrent sharedTorrent = new SharedTorrent(data, new File("d:/tmp/torrent/slave"));
-            //TODO:删除多余的文件
-            List<String> filenames = sharedTorrent.getFilenames();
+            File f = new File(slavePath);
+            SharedTorrent sharedTorrent = new SharedTorrent(data, f);
+
+
 
             Client c = new Client(
                     getIPv4Address(null),
@@ -201,6 +157,24 @@ public class TorrentSlave extends TtorrentUpdateProcess{
             cs.push(c);
             c.setMaxDownloadRate(0);
             c.download();
+            c.waitForCompletion();
+
+            List<String> filenames = sharedTorrent.getFilenames();
+            Set<String> newFiles = Sets.newHashSet();
+            for (int i = 0; i < filenames.size(); i++) {
+                String fp = new File(slavePath, filenames.get(i)).getAbsolutePath();
+                logger.info("torrent: " + fp + " " + fp.hashCode());
+                newFiles.add(fp);
+            }
+            List<File> fileList = getListFiles(f);
+            for (int i = 0; i < fileList.size(); i++) {
+                String fp = fileList.get(i).getAbsolutePath();
+                if(!newFiles.contains(fp)){
+                    logger.info("remove: " + fp + " " + fp.hashCode());
+                    fileList.get(i).delete();
+                }
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
