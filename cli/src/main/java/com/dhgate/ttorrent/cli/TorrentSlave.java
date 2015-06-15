@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.*;
 import java.nio.channels.UnsupportedAddressTypeException;
 import java.util.*;
@@ -107,7 +106,7 @@ public class TorrentSlave extends TtorrentUpdateProcess{
     String slavePath = "d:/tmp/torrent/slave";
 
     /***
-     * 获取指定目录下的所有的文件（不包括文件夹），采用了递归
+     * 获取指定目录下的所有的文件（包括文件夹）
      *
      * @param obj
      * @return
