@@ -34,7 +34,7 @@ import java.util.*;
 /**
  * Command-line entry-point for starting a {@link com.turn.ttorrent.client.Client}
  */
-public class TorrentSlave extends TtorrentUpdateProcess{
+public class TorrentSlave extends TorrentUpdateProcess {
 
 	private static final Logger logger =
 		LoggerFactory.getLogger(TorrentSlave.class);
@@ -64,7 +64,7 @@ public class TorrentSlave extends TtorrentUpdateProcess{
 	 * @throws java.nio.channels.UnsupportedAddressTypeException If no IPv4 address was available
 	 * to bind on.
 	 */
-	private static Inet4Address getIPv4Address(String iface)
+	public static Inet4Address getIPv4Address(String iface)
 		throws SocketException, UnsupportedAddressTypeException,
 		UnknownHostException {
 		if (iface != null) {
