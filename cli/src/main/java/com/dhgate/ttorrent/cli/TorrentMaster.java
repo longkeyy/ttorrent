@@ -15,6 +15,7 @@
  */
 package com.dhgate.ttorrent.cli;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream;
 import com.turn.ttorrent.client.Client;
@@ -82,10 +83,11 @@ public class TorrentMaster extends TorrentUpdateProcess {
                 if (source.isDirectory()) {
                     List<File> files = new ArrayList<File>(FileUtils.listFiles(source, TrueFileFilter.TRUE, TrueFileFilter.TRUE));
                     Collections.sort(files);
-//                    for (int i = 0; i < files.size(); i++) {
-//                        files.get(i).getName().contains("write.lock");
-//                        files.remove(i);
-//                    }
+                    for (int i = 0; i < files.size(); i++) {
+                        if(files.get(i).getName().contains("write.lock")){
+                            files.remove(i);
+                        }
+                    }
                     torrent = Torrent.create(source, files, pieceLengthVal,
                             announceList, creator);
                 } else {
