@@ -82,6 +82,10 @@ public class TorrentMaster extends TorrentUpdateProcess {
                 if (source.isDirectory()) {
                     List<File> files = new ArrayList<File>(FileUtils.listFiles(source, TrueFileFilter.TRUE, TrueFileFilter.TRUE));
                     Collections.sort(files);
+//                    for (int i = 0; i < files.size(); i++) {
+//                        files.get(i).getName().contains("write.lock");
+//                        files.remove(i);
+//                    }
                     torrent = Torrent.create(source, files, pieceLengthVal,
                             announceList, creator);
                 } else {
@@ -107,48 +111,12 @@ public class TorrentMaster extends TorrentUpdateProcess {
         consoleAppender.setThreshold(Priority.INFO);
         BasicConfigurator.configure(consoleAppender);
 
-		CmdLineParser parser = new CmdLineParser();
-		CmdLineParser.Option help = parser.addBooleanOption('h', "help");
-		CmdLineParser.Option output = parser.addStringOption('o', "output");
-		CmdLineParser.Option iface = parser.addStringOption('i', "iface");
-		CmdLineParser.Option seedTime = parser.addIntegerOption('s', "seed");
-		CmdLineParser.Option maxUpload = parser.addDoubleOption('u', "max-upload");
-		CmdLineParser.Option maxDownload = parser.addDoubleOption('d', "max-download");
-
-//		try {
-//			parser.parse(args);
-//		} catch (CmdLineParser.OptionException oe) {
-//			System.err.println(oe.getMessage());
-//			usage(System.err);
-//			System.exit(1);
-//		}
-//
-//		// Display help and exit if requested
-//		if (Boolean.TRUE.equals((Boolean)parser.getOptionValue(help))) {
-//			usage(System.out);
-//			System.exit(0);
-//		}
-//
-//		String outputValue = (String)parser.getOptionValue(output,
-//			DEFAULT_OUTPUT_DIRECTORY);
-//		String ifaceValue = (String)parser.getOptionValue(iface);
-//		int seedTimeValue = (Integer)parser.getOptionValue(seedTime, -1);
-//
-//		double maxDownloadRate = (Double)parser.getOptionValue(maxDownload, 0.0);
-//		double maxUploadRate = (Double)parser.getOptionValue(maxUpload, 0.0);
-//
-//		String[] otherArgs = parser.getRemainingArgs();
-//		if (otherArgs.length != 1) {
-//			usage(System.err);
-//			System.exit(1);
-//		}
-
         TorrentMaster torrentMain = new TorrentMaster();
         torrentMain.register();
         Set<String> announceURLs = Sets.newHashSet();
         announceURLs.add("http://192.168.54.34:6969/announce");
-        String sharePath = "d:/tmp/torrent/master/ai";
-        String shardParent = "d:/tmp/torrent/master";
+        String sharePath = "D:/example/solr/collection2/data/index";
+        String shardParent = "D:/example/solr/collection2/data";
         byte[] data = torrentMain.create(announceURLs, Torrent.DEFAULT_PIECE_LENGTH, sharePath);
         torrentMain.upload(data);
         try {

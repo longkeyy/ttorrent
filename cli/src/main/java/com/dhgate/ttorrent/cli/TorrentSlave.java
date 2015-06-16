@@ -34,7 +34,7 @@ import java.util.*;
 /**
  * Command-line entry-point for starting a {@link com.turn.ttorrent.client.Client}
  */
-public class TorrentSlave extends TtorrentUpdateProcess{
+public class TorrentSlave extends TorrentUpdateProcess{
 
 	private static final Logger logger =
 		LoggerFactory.getLogger(TorrentSlave.class);
@@ -64,7 +64,7 @@ public class TorrentSlave extends TtorrentUpdateProcess{
 	 * @throws java.nio.channels.UnsupportedAddressTypeException If no IPv4 address was available
 	 * to bind on.
 	 */
-	private static Inet4Address getIPv4Address(String iface)
+	public static Inet4Address getIPv4Address(String iface)
 		throws SocketException, UnsupportedAddressTypeException,
 		UnknownHostException {
 		if (iface != null) {
@@ -103,7 +103,7 @@ public class TorrentSlave extends TtorrentUpdateProcess{
 	}
 
     Stack<Client> cs = new Stack<Client>();
-    String slavePath = "d:/tmp/torrent/slave";
+    String slavePath = "D:/example/solr/collection1/data";
 
     /***
      * 获取指定目录下的所有的文件（包括文件夹）
@@ -168,6 +168,10 @@ public class TorrentSlave extends TtorrentUpdateProcess{
             List<File> fileList = getListFiles(f);
             for (int i = 0; i < fileList.size(); i++) {
                 String fp = fileList.get(i).getAbsolutePath();
+
+                if(fileList.get(i).getName().contains("write.lock"))
+                    continue;
+
                 if(!newFiles.contains(fp)){
                     logger.info("remove: " + fp + " " + fp.hashCode());
                     fileList.get(i).delete();
